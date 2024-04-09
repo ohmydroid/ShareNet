@@ -10,34 +10,35 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
 
         self.conv1 = nn.Sequential(
-                                     nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False),
-                                     nn.BatchNorm2d(planes))
+                     nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False),
+                     nn.BatchNorm2d(planes),
+                     nn.ReLU(True))
                
-
-        self.weight = nn.Parameter(nn.init.kaiming_normal_(torch.empty(planes*expansion, planes, 1, 1)))
-
-        self.bn = nn.BatchNorm2d(planes)
+        
+        self.weight = nn.Parameter(init.kaiming_normal_(torch.empty(planes*expansion, planes, 1, 1)))
+        self.bn1 = nn.BatchNorm2d(planes*expansion)
+        
+        self.bn2 = nn.BatchNorm2d(planes)
 
         self.shortcut = nn.Sequential()
 
         if stride != 1 or in_planes != planes:
            self.shortcut = nn.Sequential(
-                                        nn.Conv2d(in_planes, planes, kernel_size=1, stride=stride, bias=False),
-                                        nn.BatchNorm2d(planes)
-                                        )
+                           nn.Conv2d(in_planes, planes, kernel_size=1, stride=stride, bias=False),
+                           nn.BatchNorm2d(planes)
+                            )
 
            
 
     def forward(self, x):
-        #print(self.weight[0,0,0,0])
         out = self.conv1(x)
-        out = F.relu(out,inplace=True)
 
         out = F.conv2d(out,self.weight,bias=None,stride=1,padding=0)
+        out = self.bn1(out)
         out = F.relu(out,inplace=True)
 
-        out = F.conv2d(out,torch.permute(self.weight,(1,0,2,3)),bias=None,stride=1,padding=0)
-        out = self.bn(out)
+        out = F.conv2d(out,self.weight.transpose(1,0),bias=None,stride=1,padding=0)
+        out = self.bn2(out)
         out = out + self.shortcut(x)
         return out
 
@@ -79,7 +80,7 @@ class ShareNet(nn.Module):
         out = self.layer2(out)
         out = self.layer3(out)
 
-        out = F.avg_pool2d(out, out.size()[3])
+        out = F.avg_pool2d(out, out.size(3))
         out = out.view(out.size(0), -1)
         out = self.linear(out)
 
